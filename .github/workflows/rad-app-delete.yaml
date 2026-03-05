@@ -65,6 +65,14 @@ jobs:
                 KUBECONFIG: /tmp/kubeconfig.yaml
                 RADIUS_IMAGE_REGISTRY: ${{ vars.RADIUS_IMAGE_REGISTRY }}
                 RADIUS_IMAGE_TAG: ${{ vars.RADIUS_IMAGE_TAG }}
+            - name: Wait for deployment engine
+              run: |-
+                echo "Waiting for deployment engine to be ready..."
+                kubectl wait --for=condition=available deployment/bicep-de -n radius-system --timeout=120s || {
+                  echo "Warning: Deployment engine not available, continuing anyway..."
+                }
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
             - name: Wait for Radius and create resource group
               run: |-
                 echo "Waiting for Radius control plane to be ready..."
