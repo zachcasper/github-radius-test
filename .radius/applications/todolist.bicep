@@ -4,7 +4,7 @@ extension postgresqldatabases
 
 param environment string 
 
-resource todolist 'Radius.Core/applications@2025-08-01-preview' = {
+resource todolist 'Applications.Core/applications@2023-10-01-preview' = {
   name: 'todolist'
   properties: {
     environment: environment
