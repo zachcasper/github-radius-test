@@ -141,16 +141,21 @@ jobs:
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
               if: vars.KUBERNETES_CLUSTER != ''
-            - name: Configure applications-rp for target cluster
+            - name: Configure Radius for target cluster
               run: |-
-                echo "Patching applications-rp to use target cluster kubeconfig..."
-                kubectl patch deployment applications-rp -n radius-system --type=json -p='[
+                echo "Patching applications-rp and dynamic-rp to use target cluster kubeconfig..."
+                PATCH='[
                   {"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"target-kubeconfig","secret":{"secretName":"radius-target-kubeconfig"}}},
                   {"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{"name":"target-kubeconfig","mountPath":"/etc/radius/target-kubeconfig","readOnly":true}},
                   {"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"RADIUS_TARGET_KUBECONFIG","value":"/etc/radius/target-kubeconfig/kubeconfig"}}
                 ]'
-                echo "Waiting for applications-rp rollout..."
+                for DEPLOY in applications-rp dynamic-rp; do
+                  echo "Patching $DEPLOY..."
+                  kubectl patch deployment "$DEPLOY" -n radius-system --type=json -p="$PATCH"
+                done
+                echo "Waiting for rollouts..."
                 kubectl rollout status deployment/applications-rp -n radius-system --timeout=120s
+                kubectl rollout status deployment/dynamic-rp -n radius-system --timeout=120s
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
               if: vars.KUBERNETES_CLUSTER != ''
