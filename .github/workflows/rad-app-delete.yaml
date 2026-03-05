@@ -82,7 +82,7 @@ jobs:
                 KUBECONFIG: /tmp/kubeconfig.yaml
             - name: Register resource types
               run: |-
-                cd resource-types/default-config
+                cd resource-types/config
                 for def_file in $(yq -r '.types[].definitionLocation' types.yaml); do
                   echo "Registering resource type from $def_file..."
                   rad resource-type create --from-file "$def_file"

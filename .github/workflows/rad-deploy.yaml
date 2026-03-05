@@ -80,8 +80,8 @@ jobs:
 
                 # Copy bicepconfig.json and Bicep extension archives to app directory
                 # so rad deploy can resolve Bicep extensions (Bicep searches parent dirs from .bicep file)
-                cp resource-types/default-config/bicepconfig.json app/
-                cp resource-types/default-config/*.tgz app/
+                cp resource-types/config/bicepconfig.json app/
+                cp resource-types/config/*.tgz app/
               env:
                 RADIUS_CONFIG_REPO: ${{ vars.RADIUS_CONFIG_REPO }}
             - name: Install yq
@@ -115,7 +115,7 @@ jobs:
                 KUBECONFIG: /tmp/kubeconfig.yaml
             - name: Register resource types
               run: |-
-                cd resource-types/default-config
+                cd resource-types/config
                 for def_file in $(yq -r '.types[].definitionLocation' types.yaml); do
                   echo "Registering resource type from $def_file..."
                   rad resource-type create --from-file "$def_file"
