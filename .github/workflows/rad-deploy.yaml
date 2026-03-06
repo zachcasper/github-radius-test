@@ -472,15 +472,43 @@ jobs:
                 KUBECONFIG: /tmp/kubeconfig.yaml
             - name: 'Debug: applications-rp logs'
               run: |-
-                echo "=== Last 100 lines of applications-rp ==="
-                kubectl logs deployment/applications-rp -n radius-system --tail=100 || echo "Failed to fetch applications-rp logs"
+                echo "=== Last 200 lines of applications-rp ==="
+                kubectl logs deployment/applications-rp -n radius-system --tail=200 || echo "Failed to fetch applications-rp logs"
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
               if: always()
-            - name: 'Debug: list all pods'
+            - name: 'Debug: list all pods (k3d control plane)'
               run: |-
-                echo "=== All pods across all namespaces ==="
+                echo "=== All pods on k3d (control plane cluster) ==="
                 kubectl get pods -A
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
+              if: always()
+            - name: 'Debug: list all pods (target cluster)'
+              run: |-
+                TARGET_KUBECONFIG="/tmp/target-kubeconfig.yaml"
+                if [ -f "$TARGET_KUBECONFIG" ]; then
+                  echo "=== All pods on TARGET cluster ==="
+                  kubectl --kubeconfig "$TARGET_KUBECONFIG" get pods -A || echo "Failed to query target cluster"
+                  echo ""
+                  echo "=== Deployments on TARGET cluster ==="
+                  kubectl --kubeconfig "$TARGET_KUBECONFIG" get deployments -A || echo "Failed to query target cluster"
+                else
+                  echo "No target kubeconfig found, skipping target cluster check"
+                fi
+              if: always()
+            - name: 'Debug: target kubeconfig server URL'
+              run: |-
+                TARGET_KUBECONFIG="/tmp/target-kubeconfig.yaml"
+                if [ -f "$TARGET_KUBECONFIG" ]; then
+                  echo "=== Target kubeconfig server URL ==="
+                  grep -i server "$TARGET_KUBECONFIG" || echo "No server found in kubeconfig"
+                  echo ""
+                  echo "=== Target kubeconfig inside applications-rp pod ==="
+                  kubectl exec -n radius-system deployment/applications-rp -c applications-rp -- cat /etc/radius/target-kubeconfig/config 2>/dev/null | grep -i server || echo "Failed to read kubeconfig from pod"
+                else
+                  echo "No target kubeconfig found"
+                fi
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
               if: always()
