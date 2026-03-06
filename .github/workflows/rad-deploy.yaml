@@ -290,7 +290,16 @@ jobs:
                 # resolves the Kubernetes connection. Without KUBECONFIG set, it uses in-cluster
                 # config and creates resources on the k3d control plane cluster instead of the
                 # target cluster. Setting KUBECONFIG makes the DE target the external cluster.
+                #
+                # CRITICAL: automountServiceAccountToken must be set to false. The .NET K8s client
+                # in bicep-de prefers in-cluster config (service account token) over KUBECONFIG.
+                # Disabling the service account token mount forces it to use KUBECONFIG instead.
                 PATCH_BICEP_DE='[
+                  {
+                    "op": "add",
+                    "path": "/spec/template/spec/automountServiceAccountToken",
+                    "value": false
+                  },
                   {
                     "op": "add",
                     "path": "/spec/template/spec/volumes/-",
@@ -474,6 +483,13 @@ jobs:
               run: |-
                 echo "=== ALL applications-rp logs ==="
                 kubectl logs deployment/applications-rp -n radius-system -c applications-rp --tail=500 || echo "Failed to fetch applications-rp logs"
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
+              if: always()
+            - name: 'Debug: dynamic-rp logs (all)'
+              run: |-
+                echo "=== ALL dynamic-rp logs ==="
+                kubectl logs deployment/dynamic-rp -n radius-system --tail=500 || echo "Failed to fetch dynamic-rp logs"
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
               if: always()
