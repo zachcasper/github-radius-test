@@ -252,9 +252,13 @@ jobs:
                 # config and creates resources on the k3d control plane cluster instead of the
                 # target cluster. Setting KUBECONFIG makes the DE target the external cluster.
                 #
-                # CRITICAL: automountServiceAccountToken must be set to false. The .NET K8s client
-                # in bicep-de prefers in-cluster config (service account token) over KUBECONFIG.
-                # Disabling the service account token mount forces it to use KUBECONFIG instead.
+                # CRITICAL: Two fixes for bicep-de to target the external cluster:
+                # 1. automountServiceAccountToken=false: The .NET K8s client prefers in-cluster
+                #    config (service account token) over file-based config. Disabling the token
+                #    mount prevents it from connecting to k3d.
+                # 2. Mount kubeconfig at /root/.kube/config: The .NET K8s client in KubeCredentials.cs
+                #    calls BuildConfigFromConfigFile() which looks at ~/.kube/config (i.e. /root/.kube/config).
+                #    It does NOT read the KUBECONFIG environment variable like kubectl does.
                 PATCH_BICEP_DE='[
                   {
                     "op": "add",
@@ -276,7 +280,7 @@ jobs:
                     "path": "/spec/template/spec/containers/0/volumeMounts/-",
                     "value": {
                       "name": "target-kubeconfig",
-                      "mountPath": "/etc/radius/target-kubeconfig",
+                      "mountPath": "/root/.kube",
                       "readOnly": true
                     }
                   },
@@ -285,7 +289,7 @@ jobs:
                     "path": "/spec/template/spec/containers/0/env/-",
                     "value": {
                       "name": "KUBECONFIG",
-                      "value": "/etc/radius/target-kubeconfig/config"
+                      "value": "/root/.kube/config"
                     }
                   }
                 ]'
