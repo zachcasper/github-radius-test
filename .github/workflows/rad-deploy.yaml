@@ -390,7 +390,17 @@ jobs:
                 cd resource-types/config
                 for def_file in $(yq -r '.types[].definitionLocation' types.yaml); do
                   echo "Registering resource type from $def_file..."
-                  rad resource-type create --from-file "$def_file"
+                  for attempt in $(seq 1 5); do
+                    if rad resource-type create --from-file "$def_file" 2>&1; then
+                      break
+                    fi
+                    if [ $attempt -eq 5 ]; then
+                      echo "Failed to register $def_file after 5 attempts"
+                      exit 1
+                    fi
+                    echo "  Retrying in 5s... ($attempt/5)"
+                    sleep 5
+                  done
                 done
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
