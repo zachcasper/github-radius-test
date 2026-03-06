@@ -457,10 +457,33 @@ jobs:
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
                 RADIUS_RECIPES_MANIFEST: ${{ vars.RADIUS_RECIPES_MANIFEST }}
+            - name: 'Debug: list kube contexts'
+              run: |-
+                echo "=== Available kube contexts ==="
+                kubectl config get-contexts
+                echo ""
+                echo "=== Current kube context ==="
+                kubectl config current-context
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
             - name: Deploy application
               run: cd app && rad deploy ${{ inputs.bicep_file }} --environment ${{ inputs.environment }} --group github
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
+            - name: 'Debug: applications-rp logs'
+              run: |-
+                echo "=== Last 100 lines of applications-rp ==="
+                kubectl logs deployment/applications-rp -n radius-system --tail=100 || echo "Failed to fetch applications-rp logs"
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
+              if: always()
+            - name: 'Debug: list all pods'
+              run: |-
+                echo "=== All pods across all namespaces ==="
+                kubectl get pods -A
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
+              if: always()
             - name: Cleanup k3d cluster
               run: k3d cluster delete radius-ephemeral || true
               if: always()
