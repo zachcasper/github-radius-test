@@ -470,10 +470,24 @@ jobs:
               run: cd app && rad deploy ${{ inputs.bicep_file }} --environment ${{ inputs.environment }} --group github
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
-            - name: 'Debug: applications-rp logs'
+            - name: 'Debug: applications-rp logs (all)'
               run: |-
-                echo "=== Last 200 lines of applications-rp ==="
-                kubectl logs deployment/applications-rp -n radius-system --tail=200 || echo "Failed to fetch applications-rp logs"
+                echo "=== ALL applications-rp logs ==="
+                kubectl logs deployment/applications-rp -n radius-system -c applications-rp --tail=500 || echo "Failed to fetch applications-rp logs"
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
+              if: always()
+            - name: 'Debug: bicep-de logs'
+              run: |-
+                echo "=== ALL bicep-de logs ==="
+                kubectl logs deployment/bicep-de -n radius-system --tail=500 || echo "Failed to fetch bicep-de logs"
+              env:
+                KUBECONFIG: /tmp/kubeconfig.yaml
+              if: always()
+            - name: 'Debug: ucp logs'
+              run: |-
+                echo "=== Last 200 lines of UCP ==="
+                kubectl logs deployment/ucp -n radius-system --tail=200 || echo "Failed to fetch ucp logs"
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
               if: always()
@@ -481,6 +495,9 @@ jobs:
               run: |-
                 echo "=== All pods on k3d (control plane cluster) ==="
                 kubectl get pods -A
+                echo ""
+                echo "=== All services on k3d ==="
+                kubectl get svc -A
               env:
                 KUBECONFIG: /tmp/kubeconfig.yaml
               if: always()
@@ -491,21 +508,31 @@ jobs:
                   echo "=== All pods on TARGET cluster ==="
                   kubectl --kubeconfig "$TARGET_KUBECONFIG" get pods -A || echo "Failed to query target cluster"
                   echo ""
+                  echo "=== All services on TARGET cluster ==="
+                  kubectl --kubeconfig "$TARGET_KUBECONFIG" get svc -A || echo "Failed to query target cluster"
+                  echo ""
                   echo "=== Deployments on TARGET cluster ==="
                   kubectl --kubeconfig "$TARGET_KUBECONFIG" get deployments -A || echo "Failed to query target cluster"
                 else
                   echo "No target kubeconfig found, skipping target cluster check"
                 fi
               if: always()
-            - name: 'Debug: target kubeconfig server URL'
+            - name: 'Debug: kubeconfig auth type'
               run: |-
                 TARGET_KUBECONFIG="/tmp/target-kubeconfig.yaml"
                 if [ -f "$TARGET_KUBECONFIG" ]; then
-                  echo "=== Target kubeconfig server URL ==="
-                  grep -i server "$TARGET_KUBECONFIG" || echo "No server found in kubeconfig"
+                  echo "=== Target kubeconfig auth mechanism ==="
+                  echo "Server:"
+                  grep -i "server:" "$TARGET_KUBECONFIG" || echo "  (none)"
+                  echo "Has exec plugin:"
+                  grep -i "exec:" "$TARGET_KUBECONFIG" && echo "  WARNING: exec-based auth may not work inside containers" || echo "  No exec plugin (good)"
+                  echo "Has client-certificate:"
+                  grep -i "client-certificate" "$TARGET_KUBECONFIG" || echo "  No client certificate"
+                  echo "Has token:"
+                  grep -i "token:" "$TARGET_KUBECONFIG" | head -1 | sed 's/token:.*/token: <REDACTED>/' || echo "  No token"
                   echo ""
-                  echo "=== Target kubeconfig inside applications-rp pod ==="
-                  kubectl exec -n radius-system deployment/applications-rp -c applications-rp -- cat /etc/radius/target-kubeconfig/config 2>/dev/null | grep -i server || echo "Failed to read kubeconfig from pod"
+                  echo "=== Full kubeconfig structure (secrets redacted) ==="
+                  sed 's/\(certificate-data:\).*/\1 <REDACTED>/; s/\(client-key-data:\).*/\1 <REDACTED>/; s/\(token:\).*/\1 <REDACTED>/' "$TARGET_KUBECONFIG"
                 else
                   echo "No target kubeconfig found"
                 fi
